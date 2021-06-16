@@ -1,0 +1,63 @@
+{% macro netbox_sitename() -%}
+    ServerName {{ vhost.site_name }}
+{% if vhost.aliases is defined %}
+    ServerAlias {{ vhost.aliases | join(' ') }}
+{% endif %}
+{%- endmacro %}
+{% macro netbox_config() -%}
+    ProxyPreserveHost On
+
+    {{ netbox_sitename() }}
+    ServerAdmin {{ vhost.admin_mail }}
+    Alias /static {{ netbox.install_dir }}/netbox/static
+
+    <Directory {{ netbox.install_dir }}/netbox/static>
+        Options Indexes FollowSymLinks MultiViews
+        AllowOverride None
+        Require all granted
+    </Directory>
+
+    LogLevel warn
+    ErrorLog ${APACHE_LOG_DIR}/{{ vhost.name }}_error.log
+    CustomLog ${APACHE_LOG_DIR}/{{ vhost.name }}_access.log combined
+
+    <Location /static>
+        ProxyPass !
+    </Location>
+
+    RequestHeader set "X-Forwarded-Proto" expr=%{REQUEST_SCHEME}
+    ProxyPass / http://{{ vhost.local_service }}/
+    ProxyPassReverse / http://{{ vhost.local_service }}/
+{%- endmacro %}
+
+<VirtualHost *:80>
+
+{% if vhost.https_enabled and vhost.https_redirect %}
+    {{ netbox_sitename() }}
+    Include includes/https_redirect.conf
+{% else %}
+    {{ netbox_config() }}
+{% endif %}
+
+</VirtualHost>
+
+{% if vhost.https_enabled %}
+<VirtualHost *:443>
+
+    {{ netbox_config() }}
+
+    Include includes/tls1-2.conf
+{% if vhost.https_letsencrypt %}
+    SSLCertificateFile {{ simp_le.home_dir }}/simp_le/{{ vhost.name }}/fullchain.pem
+    SSLCertificateKeyFile {{ simp_le.home_dir }}/simp_le/{{ vhost.name }}/key.pem
+{% else %}
+    SSLCertificateFile {{ vhost.cert }}
+    SSLCertificateKeyFile {{ vhost.key }}
+{%   if vhost.chain is defined %}
+    SSLCertificateChainFile {{ vhost.chain }}
+{%   endif %}
+{% endif %}
+
+</VirtualHost>
+{% endif %}
+

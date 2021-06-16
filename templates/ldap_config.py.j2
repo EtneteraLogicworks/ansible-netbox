@@ -1,0 +1,40 @@
+import ldap
+from django_auth_ldap.config import LDAPSearch, GroupOfNamesType
+
+# Server config
+
+AUTH_LDAP_SERVER_URI = "{{ netbox.ldap.url }}"
+AUTH_LDAP_START_TLS = {{ 'True' if netbox.ldap.starttls else 'False' }}
+AUTH_LDAP_BIND_DN = "{{ netbox.ldap.username }}"
+AUTH_LDAP_BIND_PASSWORD = "{{ netbox.ldap.password }}"
+
+
+# User config
+
+AUTH_LDAP_USER_SEARCH = LDAPSearch("{{ netbox.ldap.base_dn_users }}", ldap.SCOPE_SUBTREE, "(uid=%(user)s)")
+{% if netbox.ldap.user_dn_template | default(False) %}
+AUTH_LDAP_USER_DN_TEMPLATE = "{{ netbox.ldap.user_dn_template }}"
+{% endif %}
+AUTH_LDAP_USER_ATTR_MAP = {
+    "first_name": "{{ netbox.ldap.user_attr_mapping.first_name }}",
+    "last_name": "{{ netbox.ldap.user_attr_mapping.last_name }}",
+    "email": "{{ netbox.ldap.user_attr_mapping.email }}"
+}
+
+
+# Group config
+
+AUTH_LDAP_GROUP_SEARCH = LDAPSearch("{{ netbox.ldap.base_dn_groups }}", ldap.SCOPE_SUBTREE, "(objectClass=group)")
+AUTH_LDAP_GROUP_TYPE = GroupOfNamesType()
+{% if netbox.ldap.group_require | default(False) %}
+AUTH_LDAP_REQUIRE_GROUP = "{{ netbox.ldap.group_require }}"
+{% endif %}
+{% if netbox.ldap.group_mapping is defined %}
+AUTH_LDAP_USER_FLAGS_BY_GROUP = {
+    "is_active": "{{ netbox.ldap.group_mapping.active }}",
+    "is_staff": "{{ netbox.ldap.group_mapping.staff }}",
+    "is_superuser": "{{ netbox.ldap.group_mapping.superuser }}"
+}
+{% endif %}
+AUTH_LDAP_MIRROR_GROUPS = True
+AUTH_LDAP_FIND_GROUP_PERMS = True

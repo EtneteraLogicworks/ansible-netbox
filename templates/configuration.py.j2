@@ -1,0 +1,160 @@
+#########################
+#                       #
+#   Required settings   #
+#                       #
+#########################
+
+ALLOWED_HOSTS = [ "{{ netbox.vhost.site_name }}"{{ (', ' + netbox.vhost.aliases | wrap | join(', ')) if netbox.vhost.aliases is defined }} ]
+
+DATABASE = {
+    'NAME': '{{ netbox.database.name }}',
+    'USER': '{{ netbox.database.user }}',
+    'PASSWORD': '{{ netbox.database.password }}',
+    'HOST': 'localhost',
+    'PORT': '',
+    'CONN_MAX_AGE': 300,
+}
+
+REDIS = {
+    'tasks': {
+        'HOST': 'localhost',
+        'PORT': 6379,
+        'PASSWORD': '{{ redis_password }}',
+        'DATABASE': 0,
+        'RQ_DEFAULT_TIMEOUT': 300,
+        'SSL': False,
+    },
+    'caching': {
+        'HOST': 'localhost',
+        'PORT': 6379,
+        'PASSWORD': '{{ redis_password }}',
+        'DATABASE': 1,
+        'RQ_DEFAULT_TIMEOUT': 300,
+        'SSL': False,
+    }
+}
+
+SECRET_KEY = '{{ netbox.secret_key }}'
+
+
+#########################
+#                       #
+#   Optional settings   #
+#                       #
+#########################
+
+ADMINS = [
+    ['NetBox Admin', '{{ admin_mail }}'],
+]
+
+ALLOWED_URL_SCHEMES = (
+    'file', 'ftp', 'ftps', 'http', 'https', 'irc', 'mailto', 'sftp', 'ssh', 'tel', 'telnet', 'tftp', 'vnc', 'xmpp',
+)
+
+BANNER_TOP = ''
+BANNER_BOTTOM = ''
+
+BANNER_LOGIN = ''
+
+BASE_PATH = ''
+
+CACHE_TIMEOUT = 900
+
+CHANGELOG_RETENTION = {{ netbox.changelog_retention }}
+
+CORS_ORIGIN_ALLOW_ALL = False
+
+DEBUG = False
+
+EMAIL = {
+    'SERVER': '{{ netbox.mail.server }}',
+    'PORT': {{ netbox.mail.port }},
+    'USERNAME': '{{ netbox.mail.username | default("") }}',
+    'PASSWORD': '{{ netbox.mail.password | default("") }}',
+    'USE_SSL': {{ "True" if netbox.mail.tls == "tls" else "False" }},
+    'USE_TLS': {{ "True" if netbox.mail.tls == "starttls" else "False" }},
+    'TIMEOUT': 10,  # seconds
+    'FROM_EMAIL': '{{ netbox.mail.username | default("") }}',
+}
+
+ENFORCE_GLOBAL_UNIQUE = False
+
+{% if proxy_env is defined  %}
+HTTP_PROXIES = {
+    'http': '{{ proxy_env.http_proxy }}',
+    'https': '{{ proxy_env.https_proxy }}',
+}
+{% endif %}
+
+INTERNAL_IPS = ('127.0.0.1', '::1')
+
+LOGGING = {}
+
+LOGIN_REQUIRED = True
+
+LOGIN_TIMEOUT = 1209600
+
+MAINTENANCE_MODE = False
+
+MAX_PAGE_SIZE = 1000
+
+MEDIA_ROOT = '{{ netbox.install_dir }}/netbox/media'
+
+METRICS_ENABLED = False
+
+NAPALM_USERNAME = ''
+NAPALM_PASSWORD = ''
+
+NAPALM_TIMEOUT = 30
+
+NAPALM_ARGS = {}
+
+PAGINATE_COUNT = 50
+
+PLUGINS = [
+{% for plugin in netbox.plugins %}
+    '{{ plugin.name }}',
+{% endfor %}
+]
+
+PLUGINS_CONFIG = {
+{% for plugin in netbox.plugins %}
+{% if plugin.config is defined %}
+    '{{ plugin.name }}': {
+        {{ plugin.config }}
+    }{% if not loop.last %},{% endif %}
+{%   endif %}
+{% endfor %}
+}
+
+PREFER_IPV4 = False
+
+RACK_ELEVATION_DEFAULT_UNIT_HEIGHT = 22
+RACK_ELEVATION_DEFAULT_UNIT_WIDTH = 220
+
+REMOTE_AUTH_ENABLED = False
+REMOTE_AUTH_BACKEND = 'netbox.authentication.LDAPBackend'
+REMOTE_AUTH_HEADER = 'HTTP_REMOTE_USER'
+REMOTE_AUTH_AUTO_CREATE_USER = True
+REMOTE_AUTH_DEFAULT_GROUPS = []
+REMOTE_AUTH_DEFAULT_PERMISSIONS = {}
+
+RELEASE_CHECK_TIMEOUT = 24 * 3600
+
+RELEASE_CHECK_URL = None
+# RELEASE_CHECK_URL = 'https://api.github.com/repos/netbox-community/netbox/releases'
+
+REPORTS_ROOT = '{{ netbox.install_dir }}/netbox/reports'
+
+SCRIPTS_ROOT = '{{ netbox.install_dir }}/netbox/scripts'
+
+SESSION_FILE_PATH = None
+
+TIME_ZONE = 'Europe/Prague'
+
+DATE_FORMAT = 'N j, Y'
+SHORT_DATE_FORMAT = 'Y-m-d'
+TIME_FORMAT = 'g:i a'
+SHORT_TIME_FORMAT = 'H:i:s'
+DATETIME_FORMAT = 'N j, Y g:i a'
+SHORT_DATETIME_FORMAT = 'Y-m-d H:i'

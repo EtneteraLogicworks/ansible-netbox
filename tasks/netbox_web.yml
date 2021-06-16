@@ -1,0 +1,64 @@
+---
+# Ansible role
+#
+# Konfigurace webserveru pro NetBox
+
+- name: Configure NetBox apache2 vhost
+  block:
+    - name: Get Lets's Encrypt certificate
+      include_tasks: 'includes/letsencrypt/main.yml'
+      vars:
+        certificate: '{{ netbox.vhost }}'
+      when: netbox.vhost.https_letsencrypt
+      tags:
+        - certs
+        - letsencrypt
+
+    - name: Create vhost configuration
+      template:
+        src: 'netbox.conf.j2'
+        dest: '/etc/apache2/sites-available/{{ netbox.vhost.name }}.conf'
+      vars:
+        vhost: '{{ netbox.vhost }}'
+      notify: Reload apache
+
+    - name: Actiate NetBox vhost
+      file:
+        path: '/etc/apache2/sites-enabled/{{ netbox.vhost.name }}.conf'
+        state: link
+        src: '../sites-available/{{ netbox.vhost.name }}.conf'
+        force: true
+      notify: Reload apache
+
+  tags:
+    - netbox-apache2
+    - vhost
+
+- name: Create gunicorn web config
+  template:
+    src: 'gunicorn.py.j2'
+    dest: '{{ netbox.install_dir }}/gunicorn.py'
+  vars:
+    vhost: '{{ netbox.vhost }}'
+  notify: Reload apache
+
+- name: Create gunicorn web config
+  template:
+    src: '{{ item }}.service.j2'
+    dest: '/etc/systemd/system/{{ item }}.service'
+  notify: Restart gunicorn services
+  loop:
+    - 'netbox-rq'
+    - 'netbox'
+
+- name: Enable gunicortn services
+  systemd:
+    daemon_reload: yes
+    name: '{{ item }}.service'
+    state: started
+    enabled: yes
+  loop:
+    - 'netbox-rq'
+    - 'netbox'
+
+...

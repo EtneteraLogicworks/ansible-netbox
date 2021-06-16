@@ -1,0 +1,155 @@
+---
+# Ansible task
+#
+# Install Netbox
+
+- name: Prepare PostreSQL database
+  block:
+    - name: Create NetBox database
+      postgresql_db:
+        name: '{{ netbox.database.name }}'
+
+    - name: Add NetBox user
+      postgresql_user:
+        db: '{{ netbox.database.name }}'
+        name: '{{ netbox.database.user }}'
+        password: '{{ netbox.database.password }}'
+        priv: 'ALL'
+
+  become: true
+  become_user: 'postgres'
+  tags:
+    - netbox-database
+
+
+- name: Install dependencies
+  apt:
+    name:
+      - 'python3-pip'
+      - 'python3-virtualenv'
+      - 'python3-venv'
+      - 'python3-dev'
+      - 'virtualenv'
+      - 'build-essential'
+      - 'libxml2-dev'
+      - 'libxslt1-dev'
+      - 'libffi-dev'
+      - 'libpq-dev'
+      - 'libssl-dev'
+      - 'zlib1g-dev'
+      - 'libldap2-dev'
+      - 'libsasl2-dev'
+      - 'libssl-dev'
+
+
+- name: Create NetBox group
+  group:
+    name: '{{ netbox.group }}'
+    system: yes
+
+- name: Create NetBox user
+  user:
+    name: '{{ netbox.user }}'
+    system: yes
+    group: '{{ netbox.group }}'
+    groups: '{{ netbox.groups | default(omit) }}'
+    shell: '/bin/nologin'
+    home: '/var/empty'
+
+
+- name: Deploy NetBox from git
+  block:
+    - name: Deploy NetBox from git
+      environment: '{{ proxy_env | default({}) }}'
+      git:
+        repo: '{{ netbox.repo }}'
+        dest: '{{ netbox.install_dir }}'
+        version: '{{ netbox.version }}'
+        force: true
+      notify: Restart gunicorn services
+
+    - name: Change media directory ownership
+      file:
+        path: '{{ netbox.install_dir }}/netbox/media'
+        owner: '{{ netbox.user }}'
+        group: '{{ netbox.group }}'
+        state: directory
+        recurse: true
+
+  when: update | default(false) | bool
+
+
+- name: Define local requirements
+  template:
+    src: 'local_requirements.txt.j2'
+    dest: '{{ netbox.install_dir }}/local_requirements.txt'
+
+- name: Create Python virtual environment
+  environment: '{{ proxy_env | default({}) }}'
+  pip:
+    requirements: '{{ netbox.install_dir }}/{{ item }}.txt'
+    virtualenv: '{{ netbox.install_dir }}/venv'
+  loop:
+    - 'requirements'
+    - 'local_requirements'
+  tags:
+    - netbox-virtualenv
+
+- name: Configure NetBox
+  block:
+  - name: Base configuration
+    template:
+      src: 'configuration.py.j2'
+      dest: '{{ netbox.install_dir }}/netbox/netbox/configuration.py'
+    notify: Restart gunicorn services
+
+  - name: LDAP configuration
+    template:
+      src: 'ldap_config.py.j2'
+      dest: '{{ netbox.install_dir }}/netbox/netbox/ldap_config.py'
+    notify: Restart gunicorn services
+    when: netbox.ldap.enabled
+    tags:
+       - netbox-config-ldap
+
+  tags:
+    - netbox-config
+
+
+- name: Upgrade to a new version
+  block:
+  - name: Migrate DB
+    command: >
+      "{{ netbox.install_dir }}/venv/bin/python3"
+      /srv/www/netbox/netbox/manage.py
+      migrate
+
+  - name: Collect static files
+    environment: '{{ proxy_env | default({}) }}'
+    command: >
+      "{{ netbox.install_dir }}/venv/bin/python3"
+      /srv/www/netbox/netbox/manage.py
+      collectstatic --no-input
+
+  - name: Remove stale content types
+    environment: '{{ proxy_env | default({}) }}'
+    command: >
+      "{{ netbox.install_dir }}/venv/bin/python3"
+      /srv/www/netbox/netbox/manage.py
+      remove_stale_contenttypes --no-input
+
+  - name: Clear user sessions
+    command: >
+      "{{ netbox.install_dir }}/venv/bin/python3"
+      /srv/www/netbox/netbox/manage.py
+      clearsessions
+
+  - name: Invalidate cached data
+    command: >
+      "{{ netbox.install_dir }}/venv/bin/python3"
+      /srv/www/netbox/netbox/manage.py
+      invalidate all
+
+  when: update | default(false) | bool
+
+...

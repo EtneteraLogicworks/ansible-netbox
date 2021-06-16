@@ -1,0 +1,16 @@
+---
+# Ansible role
+#
+# Deploy PostgreSQL
+
+- name: Install NetBox
+  import_tasks: 'netbox_install.yml'
+  tags:
+    - 'netbox-install'
+
+- name: Configure NetBox webservice
+  import_tasks: 'netbox_web.yml'
+  tags:
+    - 'netbox-web'
+
+...

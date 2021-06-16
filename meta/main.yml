@@ -1,0 +1,19 @@
+---
+# Ansible meta informace
+#
+# Zavislosti role netbox
+
+dependencies:
+  - role: webserver
+    tags:
+      - webserver
+
+  - role: postgresql
+    tags:
+      - postgresql
+
+  - role: shared-roles/redis
+    tags:
+      - redis
+
+...

@@ -1,0 +1,42 @@
+---
+# Ansible vars
+#
+# Default variables for netbox role
+
+netbox:
+  repo: 'https://github.com/netbox-community/netbox.git'
+  install_dir: '/srv/www/netbox'
+  user: 'netbox'
+  group: 'netbox'
+  changelog_retention: 365
+  version: 'master'
+  plugins: {}
+  database:
+    name: 'netbox'
+    user: 'netbox'
+  ldap:
+    enabled: false
+    starttls: true
+    user_attr_mapping:
+      first_name: 'givenName'
+      last_name: 'sn'
+      email: 'mail'
+  mail:
+    server: 'localhost'
+    port: 25
+    tls: 'none'
+  vhost:
+    name: 'netbox'
+    site_name: 'netbox.example.com'
+
+    local_service: '127.0.0.1:8001'
+
+    admin_mail: '{{ admin_mail }}'
+
+    https_enabled: false
+    https_letsencrypt: false
+    https_redirect: false
+    cert: '/etc/ssl/certs/ssl-cert-snakeoil.pem'
+    key: '/etc/ssl/private/ssl-cert-snakeoil.key'
+
+...
